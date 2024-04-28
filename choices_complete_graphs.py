@@ -1,6 +1,7 @@
 # This is a coding experiment using 2-choice updating rule for complete graphs
 
 import asyncio
+import sys
 from functools import lru_cache
 from typing import Final
 
@@ -59,18 +60,45 @@ def opinion_update(
 
 
 async def simulate_opinion_dynamics(_n: int, _p: float, /):
-    graph = create_complete_graph(n)
+    graph = create_complete_graph(_n)
     # Initial opinions
     count = 1
 
-    opinions = initialize_opinions(n, p)
+    opinions = initialize_opinions(_n, p)
     print(f"Initial opinions: {opinions}")
     # Simulation
-    while np.sum(opinions) != n:
-        opinions = opinion_update(graph, opinions, n, alpha)
-        # print(f"Iteration {iter}: Updated opinions: {opinions} \n")
+    while np.sum(opinions) != _n:
+        opinions = opinion_update(graph, opinions, _n, alpha)
+        print(f"\033[H\033[JN is {_n}, Iteration {count}: Updated opinions: \n{opinions} \n")
         count += 1
     iters.append(count)
+
+
+async def foo(_n: int):
+    for i in range(5):
+        await simulate_opinion_dynamics(_n, p)
+    t_n_p.append(sum(iters) / len(iters) / _n)
+
+
+def start() -> None:
+    for n in n_list:
+        asyncio.run(foo(n))
+
+    n = np.array(n_list)
+    log_function = 1.5 * np.log(n)
+
+    # Plotting the functions
+    plt.figure(figsize=(10, 5))
+    plt.plot(n_list, t_n_p, label='Simulation')
+    plt.plot(n_list, log_function, label='1.5 * ln(n)', linestyle='--')
+    plt.title('Comparison of t_n_p and 1.5ln(n)')
+    plt.xlabel('n')
+    plt.ylabel('t_n_p')
+    plt.legend()
+    plt.grid(True)
+    plt.axhline(0, color='black', linewidth=0.5)  # Add x-axis line
+    plt.axvline(0, color='black', linewidth=0.5)  # Add y-axis line
+    plt.show()
 
 
 n_list: Final[tuple[int, ...]] = (100, 200, 400, 600, 800, 1000)  # Number of nodes
@@ -81,28 +109,9 @@ p: Final[float] = 0.35  # Initial proportion of superior opinion
 t_n_p: Final[list[float]] = []
 iters: Final[list[int]] = []
 
-
-async def foo(_n: int):
-    for i in range(5):
-        await simulate_opinion_dynamics(_n, p)
-    t_n_p.append(sum(iters) / len(iters) / _n)
-
-
-for n in n_list:
-    asyncio.run(foo(n))
-
-n = np.array(n_list)
-log_function = 1.5 * np.log(n)
-
-# Plotting the functions
-plt.figure(figsize=(10, 5))
-plt.plot(n_list, t_n_p, label='Simulation')
-plt.plot(n_list, log_function, label='1.5 * ln(n)', linestyle='--')
-plt.title('Comparison of t_n_p and 1.5ln(n)')
-plt.xlabel('n')
-plt.ylabel('t_n_p')
-plt.legend()
-plt.grid(True)
-plt.axhline(0, color='black', linewidth=0.5)  # Add x-axis line
-plt.axvline(0, color='black', linewidth=0.5)  # Add y-axis line
-plt.show()
+if __name__ == '__main__':
+    try:
+        start()
+    except KeyboardInterrupt:
+        print("\nBye!")
+        sys.exit(0)
