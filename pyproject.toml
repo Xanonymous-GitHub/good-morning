@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "tempoeigjwoigej"
+version = "0.1.0"
+description = ""
+authors = ["Xanonymous <trusaidlin@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+matplotlib = "^3.8.4"
+networkx = "^3.3"
+numpy = "^1.26.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
