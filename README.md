@@ -8,5 +8,5 @@ Today is a beautiful day. I hope you have a great day too.
 - Do: Install dependencies
 - Or: Use `pip install -r requirements.txt`
 
-> **Caution**
+> [!CAUTION]
 > Use Graphics card for faster processing !
