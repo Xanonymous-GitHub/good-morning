@@ -19,7 +19,7 @@ def create_complete_graph(_n: int, /) -> nx.Graph:
 @lru_cache(typed=True)
 def initialize_opinions(_n: int, _p: float, /) -> np.ndarray:
     # Create an array of zeros
-    opinions = np.zeros(_n, dtype=int)
+    opinions = np.zeros(_n, dtype=np.uint8)
     # Calculate the number of ones based on the proportion p
     num_ones = int(_n * _p)
     # Randomly select num_ones indices to set to 1
