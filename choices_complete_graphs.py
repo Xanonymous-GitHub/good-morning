@@ -1,6 +1,7 @@
 # This is a coding experiment using 2-choice updating rule for complete graphs
 
 import asyncio
+import concurrent.futures
 import sys
 from functools import lru_cache
 from typing import Final
@@ -65,24 +66,36 @@ async def simulate_opinion_dynamics(_n: int, _p: float, /):
     count = 1
 
     opinions = initialize_opinions(_n, p)
-    print(f"Initial opinions: {opinions}")
+
     # Simulation
     while np.sum(opinions) != _n:
         opinions = opinion_update(graph, opinions, _n, alpha)
-        print(f"\033[H\033[JN is {_n}, Iteration {count}: Updated opinions: \n{opinions} \n")
+        print(f"\033[H\033[JN is {_n}, Iteration {count}")
         count += 1
     iters.append(count)
 
 
-async def foo(_n: int):
-    for i in range(5):
-        await simulate_opinion_dynamics(_n, p)
-    t_n_p.append(sum(iters) / len(iters) / _n)
+async def foo(_n: int, _t_n_p: list[float]):
+    await asyncio.gather(*[
+        simulate_opinion_dynamics(_n, p)
+        for _ in range(500)
+    ])
+
+    _t_n_p.append(sum(iters) / len(iters) / _n)
+    return _t_n_p
+
+
+def foo_sync(_n: int, _t_n_p: list[float]):
+    return asyncio.run(foo(_n, _t_n_p))
 
 
 def start() -> None:
-    for n in n_list:
-        asyncio.run(foo(n))
+    t_n_p: list[float] = []
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        future_results = [executor.submit(foo_sync, n, t_n_p) for n in n_list]
+        for future in concurrent.futures.as_completed(future_results):
+            results = future.result()
+            t_n_p.extend([f for f in results])
 
     n = np.array(n_list)
     log_function = 1.5 * np.log(n)
@@ -106,7 +119,6 @@ n_list: Final[tuple[int, ...]] = (100, 200, 400, 600, 800, 1000)  # Number of no
 alpha: Final[float] = 0.1  # Bias towards superior opinion
 p: Final[float] = 0.35  # Initial proportion of superior opinion
 
-t_n_p: Final[list[float]] = []
 iters: Final[list[int]] = []
 
 if __name__ == '__main__':
