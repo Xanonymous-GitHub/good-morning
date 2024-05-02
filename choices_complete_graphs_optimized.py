@@ -8,9 +8,9 @@ import numpy as np
 
 nodes: Final[tuple[int, ...]] = (100, 200, 400, 600, 800, 1000)
 alpha: Final[float] = 0.1
-init_ratio_of_one: Final[float] = 0.35
+init_ratio_of_one: Final[float] = 0.4
 spread_repeat_times: Final[int] = 500
-opinion_update_times_limit: Final[int] = 1000000
+opinion_update_times_limit: Final[int] = 2000000
 
 
 def initialize_opinions(*, size: int, ratio_of_one: float) -> np.ndarray:
