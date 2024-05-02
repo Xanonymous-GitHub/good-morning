@@ -5,7 +5,7 @@ from concurrent.futures import (
     as_completed,
     Future,
 )
-from multiprocessing import current_process
+from multiprocessing import current_process, cpu_count
 from random import random, sample
 from typing import Final
 
@@ -16,17 +16,17 @@ nodes: Final[tuple[int, ...]] = (100, 200, 400, 800)
 alpha: Final[float] = 0.1
 init_ratio_of_one: Final[float] = 0.4
 spread_repeat_times: Final[int] = 500
-opinion_update_times_limit: Final[int] = 2000000
+opinion_update_times_limit: Final[int] = 10_000_000
 
 
-def initialize_opinions(*, size: int, ratio_of_one: float) -> np.ndarray:
-    return np.random.choice([0, 1], size, p=[1 - ratio_of_one, ratio_of_one])
+def initialize_opinions(*, size: int) -> np.ndarray:
+    return np.random.choice([0, 1], size, p=[1 - init_ratio_of_one, init_ratio_of_one])
 
 
 def opinion_update(
         *,
         current_opinions: np.ndarray,
-        all_graph_members: tuple[int, ...]
+        all_graph_members: list[int]
 ) -> None:
     size = current_opinions.size
     target_opinion = int(random() * size)
@@ -48,7 +48,7 @@ def opinion_update(
 
 def update_opinion_until_all_one(
         current_opinions: np.ndarray,
-        all_graph_members: tuple[int, ...]
+        all_graph_members: list[int]
 ) -> int:
     current_opinions = current_opinions.copy()
     times = 0
@@ -68,27 +68,58 @@ def update_opinion_until_all_one(
     return times
 
 
+def updates_in_single_process(
+        opinion_size: int,
+        batch_size: int,
+        all_graph_members: list[int]
+) -> list[float]:
+    process_name = current_process().name
+    print(f"{process_name} is working...")
+    with ThreadPoolExecutor() as _executor:
+        _missions = [
+            _executor.submit(
+                update_opinion_until_all_one,
+                initialize_opinions(size=opinion_size),
+                all_graph_members
+            )
+            for _ in range(batch_size)
+        ]
+
+        return [
+            future.result()
+            for future in as_completed(_missions)
+        ]
+
+
 def avg_opinion_update_times_of(size: int) -> float:
     if size == 0:
         return 0.0
 
-    all_graph_members = tuple(range(size))
+    all_graph_members: list[int] = list(range(size))
 
-    process_name = current_process().name
-    print(f"N is {size}, running on {process_name}, please wait...")
-    with ThreadPoolExecutor() as executor:
+    batch_size_per_process = (
+        spread_repeat_times // cpu_amount
+        if spread_repeat_times > (cpu_amount := cpu_count()) else 1
+    )
+    non_handled_size = spread_repeat_times % cpu_amount
+
+    print(f"N is {size}, please wait...")
+
+    with ProcessPoolExecutor() as _p_executor:
         missions = [
-            executor.submit(
-                update_opinion_until_all_one,
-                initialize_opinions(size=size, ratio_of_one=init_ratio_of_one),
+            _p_executor.submit(
+                updates_in_single_process,
+                size,
+                batch_size_per_process + 1 if i < non_handled_size else batch_size_per_process,
                 all_graph_members
             )
-            for _ in range(spread_repeat_times)
+            for i in range(cpu_amount)
         ]
 
         opinion_update_times = [
-            future.result()
+            times
             for future in as_completed(missions)
+            for times in future.result()
         ]
 
     result = sum(opinion_update_times) / (spread_repeat_times * size)
