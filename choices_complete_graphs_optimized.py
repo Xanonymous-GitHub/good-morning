@@ -1,12 +1,18 @@
 import sys
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    ProcessPoolExecutor,
+    as_completed,
+    Future,
+)
+from multiprocessing import current_process
 from random import random, sample
 from typing import Final
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-nodes: Final[tuple[int, ...]] = (100, 200, 400, 600, 800, 1000)
+nodes: Final[tuple[int, ...]] = (100, 200, 400, 800)
 alpha: Final[float] = 0.1
 init_ratio_of_one: Final[float] = 0.4
 spread_repeat_times: Final[int] = 500
@@ -68,7 +74,9 @@ def avg_opinion_update_times_of(size: int) -> float:
 
     all_graph_members = tuple(range(size))
 
-    with ProcessPoolExecutor() as executor:
+    process_name = current_process().name
+    print(f"N is {size}, running on {process_name}, please wait...")
+    with ThreadPoolExecutor() as executor:
         missions = [
             executor.submit(
                 update_opinion_until_all_one,
@@ -83,23 +91,31 @@ def avg_opinion_update_times_of(size: int) -> float:
             for future in as_completed(missions)
         ]
 
-    return sum(opinion_update_times) / (spread_repeat_times * size)
+    result = sum(opinion_update_times) / (spread_repeat_times * size)
+    print(f"Average opinion update times of {size} nodes: {result}\n")
+    return result
 
 
 def start() -> None:
-    avg_opinion_update_times: Final[list[float]] = []
+    avg_opinion_update_times: Final[dict[int, float]] = {
+        n: 0.0
+        for n in nodes
+    }
 
-    for n in nodes:
-        print(f"N is {n}, please wait...")
-        result = avg_opinion_update_times_of(n)
-        avg_opinion_update_times.append(result)
-        print(f"Average opinion update times of {n} nodes: {result}\n")
+    with ProcessPoolExecutor() as executor:
+        missions: Final[dict[int, Future]] = {
+            k: executor.submit(avg_opinion_update_times_of, k)
+            for k in avg_opinion_update_times.keys()
+        }
+
+        for k, future in missions.items():
+            avg_opinion_update_times[k] = future.result()
 
     log_function = 1.5 * np.log(nodes)
 
     # Plotting the functions
     plt.figure(figsize=(10, 5))
-    plt.plot(nodes, avg_opinion_update_times, label='Simulation')
+    plt.plot(nodes, tuple(avg_opinion_update_times.values()), label='Simulation')
     plt.plot(nodes, log_function, label='1.5 * ln(n)', linestyle='--')
     plt.title('Comparison of t_n_p and 1.5ln(n)')
     plt.xlabel('n')
